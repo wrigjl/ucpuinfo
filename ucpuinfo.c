@@ -34,6 +34,13 @@ struct dts {
 	unsigned long base;
 } __attribute__((packed));
 
+struct cpuids {
+	uint32_t a;
+	uint32_t b;
+	uint32_t c;
+	uint32_t d;
+};
+
 void showit(int s);
 uint16_t cs(void);
 uint16_t ds(void);
@@ -51,6 +58,14 @@ int verw(uint16_t);
 int validsl(int);
 uint32_t lsl(int);
 uint32_t lar(int);
+
+void show_cpuid(void);
+int cpuid_supported(void);
+void showid(uint32_t a, uint32_t c, struct cpuids *p);
+void cpuid_2(uint32_t a, uint32_t c, struct cpuids *);
+void cpuid_1(uint32_t a, struct cpuids *);
+unsigned long get_flags(void);
+void set_flags(unsigned long);
 
 const char *segtypes[] = {
 	"Reserved-0",
@@ -119,6 +134,7 @@ main(int argc, char *argv[]) {
 	for (i = 4; i < 65536; i += 8)
 		showit(i);
 
+	show_cpuid();
 	return 0;
 }
 
@@ -287,3 +303,104 @@ lar(int s) {
 	asm volatile("lar %1, %0" : "=a" (r) : "r" (s) : "cc");
 	return (r);
 }
+
+#define EFLAG_ID (1 << 21)
+
+void
+show_cpuid(void) {
+	struct cpuids basic, verinfo, vmm, id, ext;
+	unsigned mx, i;
+
+	if (!cpuid_supported())
+		return;
+
+	cpuid_1(0, &basic);
+	mx = basic.a;
+
+	printf("%8s:%8s %8s %8s %8s %8s\n",
+	       "LEAF", "SUBLEAF", "EAX", "EBX", "ECX", "EDX");
+
+	for (i = 0; i <= mx + 1; i++) {
+		cpuid_1(i, &id);
+		showid(i, 0, &id);
+
+		/* XXX handle subleaves */
+	}
+
+	if (basic.a >= 1) {
+		/* verinfo leaf exists... */
+
+		cpuid_1(1, &verinfo);
+		cpuid_1(0x40000000, &vmm);
+		showid(0x40000000, 0, &vmm);
+		if (verinfo.c & 0x80000000) {
+			/* hypervisor present */
+
+			cpuid_1(0x40000000, &vmm);
+			if (vmm.a >= 0x40000001 && vmm.a <= 0x4000ffff) {
+				for (i = 0x40000001; i < vmm.a + 1; i++) {
+					cpuid_1(i, &id);
+					showid(i, 0, &vmm);
+				}
+			}
+		}
+	}
+
+	cpuid_1(0x80000000, &ext);
+	if (ext.a >= 0x80000000 && ext.a <= 0x8000ffff) {
+		mx = ext.a;
+		for (i = 0x80000000; i <= mx + 1; i++) {
+			cpuid_1(i, &id);
+			showid(i, 0, &id);
+		}
+	} else
+		showid(0x80000000, 0, &ext);
+}
+
+int
+cpuid_supported(void) {
+	unsigned long f1, f2, f3;
+
+	f1 = get_flags();
+	set_flags(f1 ^ EFLAG_ID);
+	f2 = get_flags();
+	set_flags(f1);
+	f3 = get_flags();
+
+	if ((f1 ^ f2 ^ f3) & EFLAG_ID)
+		return (1);
+	printf("cpuid not supported\n");
+	return (0);
+}
+
+void
+showid(uint32_t a, uint32_t c, struct cpuids *p) {
+	printf("%08x:%08x %08x %08x %08x %08x\n",
+	       a, c, p->a, p->b, p->c, p->d);
+}
+
+void
+cpuid_2(uint32_t a, uint32_t c, struct cpuids *p) {
+	asm volatile("cpuid"
+		     : "=a" (p->a), "=b" (p->b), "=c" (p->d), "=d" (p->d)
+		     : "a" (a), "c" (c));
+}
+
+void
+cpuid_1(uint32_t a, struct cpuids *p) {
+	cpuid_2(a, 0, p);
+}
+
+unsigned long
+get_flags(void) {
+	unsigned long flags;
+
+	asm volatile("pushf; pop %0" : "=rm" (flags));
+	return flags;
+}
+
+void
+set_flags(unsigned long flags) {
+	asm volatile("push %0; popf" : : "rm" (flags) : "cc");
+}
+
