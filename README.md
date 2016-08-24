@@ -22,6 +22,7 @@ The doesn't have any command line arguments, it just spits information out.
 
 There are a few things left on the old TODO list:
 
-* CPUID
+* CPUID subleaves for Intel
+* CPUID caveats for AMD and others?
 * initial state of floating point
 * initial state of SSE/SSE2/etc
