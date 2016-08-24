@@ -1,0 +1,15 @@
+MSW=80010033
+CS=0x001b DS=0x0023 ES=0x0023 FS=0x003b GS=0x0000 SS=0x0023 TR=0x0028
+GDT base=0x80dcc000 limit=0x3ff
+IDT base=0x80dcc400 limit=0x7ff
+LDT=0x0000
+GLOBAL DESCRIPTOR TABLE
+3  0x018: LAR=0x00cffb00 LSL=0xffffffff r
+   exec/read,accessed dpl=3 granularity=page present 32-bit,code reserved-bit=clear
+4  0x020: LAR=0x00cff300 LSL=0xffffffff rw
+   read/write,accessed dpl=3 granularity=page present reserved-bit=clear
+7  0x038: LAR=0x0040f300 LSL=0x00000fff rw
+   read/write,accessed dpl=3 granularity=byte present reserved-bit=clear
+8  0x040: LAR=0x0000f200 LSL=0x0000ffff rw
+   read/write dpl=3 granularity=byte present reserved-bit=clear
+LOCAL DESCRIPTOR TABLE
