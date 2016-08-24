@@ -338,9 +338,9 @@ show_cpuid(void) {
 
 			cpuid_1(0x40000000, &vmm);
 			if (vmm.a >= 0x40000001 && vmm.a <= 0x4000ffff) {
-				for (i = 0x40000001; i < vmm.a + 1; i++) {
+				for (i = 0x40000001; i <= vmm.a + 1; i++) {
 					cpuid_1(i, &id);
-					showid(i, 0, &vmm);
+					showid(i, 0, &id);
 				}
 			}
 		}
@@ -382,7 +382,7 @@ showid(uint32_t a, uint32_t c, struct cpuids *p) {
 void
 cpuid_2(uint32_t a, uint32_t c, struct cpuids *p) {
 	asm volatile("cpuid"
-		     : "=a" (p->a), "=b" (p->b), "=c" (p->d), "=d" (p->d)
+		     : "=a" (p->a), "=b" (p->b), "=c" (p->c), "=d" (p->d)
 		     : "a" (a), "c" (c));
 }
 
