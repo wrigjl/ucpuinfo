@@ -1,6 +1,5 @@
-
 /*
- * Copyright (c) 2016 Jason L. Wright (jason@thought.net)
+ * Copyright (c) 2014-2016 Jason L. Wright (jason@thought.net)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,9 +31,136 @@
 
 struct dts {
 	uint16_t limit;
-	uint32_t base;
-	unsigned long unused;
+	unsigned long base;
 } __attribute__((packed));
+
+void showit(int s);
+uint16_t cs(void);
+uint16_t ds(void);
+uint16_t es(void);
+uint16_t fs(void);
+uint16_t gs(void);
+uint16_t ss(void);
+void sidt(struct dts *);
+void sgdt(struct dts *);
+uint16_t sldt(void);
+uint16_t str(void);
+uint32_t smsw(void);
+int verr(uint16_t);
+int verw(uint16_t);
+int validsl(int);
+uint32_t lsl(int);
+uint32_t lar(int);
+
+const char *segtypes[] = {
+	"Reserved-0",
+	"Available 16-bit TSS",
+	"LDT",
+	"Busy 16-bit TSS",
+	"16-bit call gate",
+	"16-bit/32-bit task gate",
+	"16-bit interrupt gate",
+	"16-bit trap gate",
+
+	"Reserved-8",
+	"Available 32-bit TSS",
+	"Reserved-A",
+	"Busy 32-bit TSS",
+	"32-bit call gate",
+	"Reserved-D",
+	"32-bit interrupt gate",
+	"32-bit trap gate"
+};
+
+const char *datasegs[] = {
+	"read-only",
+	"read-only,accessed",
+	"read/write",
+	"read/write,accessed",
+	"read-only,expand-down",
+	"read-only,expand-down,accessed",
+	"read/write,expand-down",
+	"read/write,expand-down,accessed",
+	"exec-only",
+	"exec-only,accessed",
+	"exec/read",
+	"exec/read,accessed",
+	"exec-only,conforming",
+	"exec-only,conforming,accessed",
+	"exec/read,conforming",
+	"exec/read,conforming,accessed"
+};
+
+int
+main(int argc, char *argv[]) {
+	int i;
+	struct dts dt;
+
+	printf("MSW=%08x\n", smsw());
+	printf("CS=0x%04x DS=0x%04x ES=0x%04x FS=0x%04x GS=0x%04x SS=0x%04x",
+		cs(), ds(), es(), fs(), gs(), ss());
+	printf(" TR=0x%04x\n", str());
+
+	memset(&dt, '\0', sizeof(dt));
+	sgdt(&dt);
+	printf("GDT base=0x%lx limit=0x%x\n", dt.base, dt.limit);
+
+	memset(&dt, '\0', sizeof(dt));
+	sidt(&dt);
+	printf("IDT base=0x%lx limit=0x%x\n", dt.base, dt.limit);
+
+	printf("LDT=0x%04x\n", sldt());
+
+	printf("GLOBAL DESCRIPTOR TABLE\n");
+	for (i = 0; i < 65536; i += 8)
+		showit(i);
+
+	printf("LOCAL DESCRIPTOR TABLE\n");
+	for (i = 4; i < 65536; i += 8)
+		showit(i);
+
+	return 0;
+}
+
+void
+showit(int s)
+{
+	int r = verr(s), w = verw(s);
+	unsigned type, la = lar(s), s_flag, dpl, p_flag, sa_flag, l_flag, db_flag, g_flag;
+
+	if (!validsl(s))
+		return;
+	printf("%-2d 0x%03x: LAR=0x%08x LSL=0x%08x%s%s%s",
+		s >> 3, s, lar(s), lsl(s),
+		(r || w) ? " " : "",
+		r ? "r" : "",
+		w ? "w" : "");
+
+	type = (la >> 8) & 0xf;
+	s_flag = la & (1 << 12);
+	dpl = (la >> 13) & 0x3;
+	p_flag = la & (1 << 15);
+	sa_flag = la & (1 << 20);
+	l_flag = la & (1 << 21);
+	db_flag = la & (1 << 22);
+	g_flag = la & (1 << 23);
+
+	printf("\n  ");
+
+	if (s_flag == 0)
+		printf(" %s", segtypes[type]);
+	else
+		printf(" %s", datasegs[type]);
+
+	printf(" dpl=%u granularity=%s %spresent",
+		dpl,
+		g_flag ? "page" : "byte",
+		p_flag ? "" : "not-");
+	if (s_flag && type >= 8)
+		printf(" %u-bit,code", l_flag ? 64 : (db_flag ? 32 : 16));
+	printf(" reserved-bit=%s", sa_flag ? "set" : "clear");
+	printf("\n");
+}
 
 uint16_t
 cs(void) {
@@ -160,114 +286,4 @@ lar(int s) {
 
 	asm volatile("lar %1, %0" : "=a" (r) : "r" (s) : "cc");
 	return (r);
-}
-
-const char *segtypes[] = {
-	"Reserved-0",
-	"Available 16-bit TSS",
-	"LDT",
-	"Busy 16-bit TSS",
-	"16-bit call gate",
-	"16-bit/32-bit task gate",
-	"16-bit interrupt gate",
-	"16-bit trap gate",
-
-	"Reserved-8",
-	"Available 32-bit TSS",
-	"Reserved-A",
-	"Busy 32-bit TSS",
-	"32-bit call gate",
-	"Reserved-D",
-	"32-bit interrupt gate",
-	"32-bit trap gate"
-};
-
-const char *datasegs[] = {
-	"read-only",
-	"read-only,accessed",
-	"read/write",
-	"read/write,accessed",
-	"read-only,expand-down",
-	"read-only,expand-down,accessed",
-	"read/write,expand-down",
-	"read/write,expand-down,accessed",
-	"exec-only",
-	"exec-only,accessed",
-	"exec/read",
-	"exec/read,accessed",
-	"exec-only,conforming",
-	"exec-only,conforming,accessed",
-	"exec/read,conforming",
-	"exec/read,conforming,accessed"
-};
-
-void
-showit(int s)
-{
-	int r = verr(s), w = verw(s);
-	unsigned type, la = lar(s), s_flag, dpl, p_flag, sa_flag, l_flag, db_flag, g_flag;
-
-	if (!validsl(s))
-		return;
-	printf("%-2d 0x%03x: LAR=0x%08x LSL=0x%08x%s%s%s",
-		s >> 3, s, lar(s), lsl(s),
-		(r || w) ? " " : "",
-		r ? "r" : "",
-		w ? "w" : "");
-
-	type = (la >> 8) & 0xf;
-	s_flag = la & (1 << 12);
-	dpl = (la >> 13) & 0x3;
-	p_flag = la & (1 << 15);
-	sa_flag = la & (1 << 20);
-	l_flag = la & (1 << 21);
-	db_flag = la & (1 << 22);
-	g_flag = la & (1 << 23);
-
-	printf("\n  ");
-
-	if (s_flag == 0)
-		printf(" %s", segtypes[type]);
-	else
-		printf(" %s", datasegs[type]);
-
-	printf(" dpl=%u granularity=%s %spresent",
-		dpl,
-		g_flag ? "page" : "byte",
-		p_flag ? "" : "not-");
-	if (s_flag && type >= 8)
-		printf(" %u-bit,code", l_flag ? 64 : (db_flag ? 32 : 16));
-	printf(" reserved-bit=%s", sa_flag ? "set" : "clear");
-	printf("\n");
-}
-
-int
-main(int argc, char *argv[]) {
-	int i;
-	struct dts dt;
-
-	printf("MSW=%08x\n", smsw());
-	printf("CS=0x%04x DS=0x%04x ES=0x%04x FS=0x%04x GS=0x%04x SS=0x%04x",
-		cs(), ds(), es(), fs(), gs(), ss());
-	printf(" TR=0x%04x\n", str());
-
-	memset(&dt, '\0', sizeof(dt));
-	sgdt(&dt);
-	printf("GDT base=0x%x limit=0x%x\n", dt.base, dt.limit);
-
-	memset(&dt, '\0', sizeof(dt));
-	sidt(&dt);
-	printf("IDT base=0x%x limit=0x%x\n", dt.base, dt.limit);
-
-	printf("LDT=0x%04x\n", sldt());
-
-	printf("GLOBAL DESCRIPTOR TABLE\n");
-	for (i = 0; i < 65536; i += 8)
-		showit(i);
-
-	printf("LOCAL DESCRIPTOR TABLE\n");
-	for (i = 4; i < 65536; i += 8)
-		showit(i);
-
-	return 0;
 }
