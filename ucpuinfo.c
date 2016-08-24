@@ -123,43 +123,42 @@ str(void) {
 
 int
 verr(uint16_t s) {
-	asm volatile goto ("verr %0; jz %l[zset]" : : "rm" (s) : "cc" : zset);
-	return (0);
-zset:
-	return (1);
+	uint8_t r;
+
+	asm volatile ("verr %1; setz %0" : "=r" (r): "rm" (s) : "cc");
+	return (r);
 }
 
 int
 verw(uint16_t s) {
-	asm volatile goto ("verw %0; jz %l[zset]" : : "rm" (s) : "cc" : zset);
-	return (0);
-zset:
-	return (1);
+	uint8_t r;
+
+	asm volatile ("verw %1; setz %0" : "=r" (r): "rm" (s) : "cc");
+	return (r);
 }
 
 int
 validsl(int s)
 {
-	asm volatile goto ("lsl %0, %%eax; jz %l[zset]" : : "rm" (s) : "cc", "%eax" : zset);
-	return (0);
+	uint8_t r;
 
-zset:
-	return (1);
-}
-
-uint32_t
-lsl(uint16_t s) {
-	uint32_t r;
-
-	asm volatile("lsl %1, %0" : "=r" (r) : "r" (s) : "cc");
+	asm volatile ("lsl %1, %%eax; setz %0" : "=r" (r) : "rm" (s) : "cc", "%eax");
 	return (r);
 }
 
 uint32_t
-lar(uint16_t s) {
+lsl(int s) {
 	uint32_t r;
 
-	asm volatile("lar %1, %0" : "=r" (r) : "r" (s) : "cc");
+	asm volatile("lsl %1, %0" : "=a" (r) : "r" (s) : "cc");
+	return (r);
+}
+
+uint32_t
+lar(int s) {
+	uint32_t r;
+
+	asm volatile("lar %1, %0" : "=a" (r) : "r" (s) : "cc");
 	return (r);
 }
 
