@@ -1,0 +1,8 @@
+Probing segments on xen causes segmentation faults.  for example:
+	
+	VERR $0x1000 -> segmentation fault
+
+The GDT limit claims to be 0xefff, though (4096 << 61439).
+
+As a result, the files contained here for xen are pieced together
+since there is no way to probe w/out segfault.  Or is there?
