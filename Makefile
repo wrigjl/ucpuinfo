@@ -1,5 +1,5 @@
 
-CFLAGS=-Wall
+CFLAGS=-Wall -g
 
 ucpuinfo: ucpuinfo.c
 	$(CC) $(CFLAGS) -o $@ ucpuinfo.c
