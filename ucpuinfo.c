@@ -146,7 +146,7 @@ showit(int s)
 
 	if (!validsl(s))
 		return;
-	printf("%-2d 0x%03x: LAR=0x%08x LSL=0x%08x%s%s%s",
+	printf("%-2d 0x%03x: LAR=0x%08x LSL=0x%08x%s%s%s\n",
 		s >> 3, s, lar(s), lsl(s),
 		(r || w) ? " " : "",
 		r ? "r" : "",
@@ -161,13 +161,7 @@ showit(int s)
 	db_flag = la & (1 << 22);
 	g_flag = la & (1 << 23);
 
-	printf("\n  ");
-
-	if (s_flag == 0)
-		printf(" %s", segtypes[type]);
-	else
-		printf(" %s", datasegs[type]);
-
+	printf("  %s", s_flag ? datasegs[type] :  segtypes[type]);
 	printf(" dpl=%u granularity=%s %spresent",
 		dpl,
 		g_flag ? "page" : "byte",
@@ -403,4 +397,3 @@ void
 set_flags(unsigned long flags) {
 	asm volatile("push %0; popf" : : "rm" (flags) : "cc");
 }
-
