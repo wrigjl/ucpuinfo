@@ -29,6 +29,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __OpenBSD__
+#include <cpuid.h>
+#endif
+
 struct dts {
 	uint16_t limit;
 	unsigned long base;
@@ -375,9 +379,13 @@ showid(uint32_t a, uint32_t c, struct cpuids *p) {
 
 void
 cpuid_2(uint32_t a, uint32_t c, struct cpuids *p) {
+#ifdef __OpenBSD__
+	__cpuid_count(a, c, p->a, p->b, p->c, p->d);
+#else
 	asm volatile("cpuid"
 		     : "=a" (p->a), "=b" (p->b), "=c" (p->c), "=d" (p->d)
 		     : "a" (a), "c" (c));
+#endif
 }
 
 void
