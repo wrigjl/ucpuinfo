@@ -70,6 +70,7 @@ void cpuid_2(uint32_t a, uint32_t c, struct cpuids *);
 void cpuid_1(uint32_t a, struct cpuids *);
 unsigned long get_flags(void);
 void set_flags(unsigned long);
+void show_flags(void);
 
 const char *segtypes[] = {
 	"Reserved-0",
@@ -115,6 +116,7 @@ main(int argc, char *argv[]) {
 	int i;
 	struct dts dt;
 
+	show_flags();
 	printf("MSW=%08x\n", smsw());
 	printf("CS=0x%04x DS=0x%04x ES=0x%04x FS=0x%04x GS=0x%04x SS=0x%04x",
 		cs(), ds(), es(), fs(), gs(), ss());
@@ -404,4 +406,32 @@ get_flags(void) {
 void
 set_flags(unsigned long flags) {
 	asm volatile("push %0; popf" : : "rm" (flags) : "cc");
+}
+
+void
+show_flags(void) {
+	unsigned long flags = get_flags();
+
+	printf("EFLAGS=%lx IOPL=%lx", flags, (flags >> 12) & 3);
+	if (flags & (1 << 8))
+		printf(",TF");
+	if (flags & (1 << 9))
+		printf(",IF");
+	if (flags & (1 << 10))
+		printf(",DF");
+	if (flags & (1 << 14))
+		printf(",NT");
+	if (flags & (1 << 16))
+		printf(",RF");
+	if (flags & (1 << 17))
+		printf(",VM");
+	if (flags & (1 << 18))
+		printf(",AC");
+	if (flags & (1 << 19))
+		printf(",VIF");
+	if (flags & (1 << 20))
+		printf(",VIP");
+	if (flags & (1 << 21))
+		printf(",ID");
+	printf("\n");
 }
